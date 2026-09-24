@@ -11,6 +11,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from rich.console import Console
 
 import config
+from api.cache import cached_json
+from api.lists import hits_by_slug, load_lists
+from api.rating import load_ratings
+from review.spaced_repetition import compute_reviews
+from scripts.demo_data import make_daily, make_demo
 from api.client import AuthError, LeetCodeClient
 from review.pipeline import load_all
 
@@ -23,7 +28,7 @@ def label(name: str) -> str:
     return LIST_LABELS.get(name) or name.removeprefix("co:").capitalize()
 
 
-def build_data(subs, reviews, lists, notes, today: datetime) -> dict:
+def build_data(subs, reviews, lists, notes, today: datetime, daily_override: dict | None = None) -> dict:
     problems = []
     for i, r in enumerate(reviews):
         elapsed = max(0.0, (today - r.last_solved).total_seconds() / 86400)
@@ -54,18 +59,41 @@ def build_data(subs, reviews, lists, notes, today: datetime) -> dict:
                          "missing": len(missing), "missing_slugs": missing[:40]})
 
     start = today.date() - timedelta(days=370)
-    daily = Counter(s.timestamp.date().isoformat() for s in subs if s.accepted and s.timestamp.date() >= start)
+    daily = daily_override if daily_override is not None else Counter(
+        s.timestamp.date().isoformat() for s in subs if s.accepted and s.timestamp.date() >= start)
     return {
         "today": today.strftime("%Y-%m-%d"), "problems": problems, "coverage": coverage, "daily": daily,
         "notes_total": len(notes),
     }
 
 
+def build_demo_page(args):
+    """Whole page from synthetic data: no cookie, no account data, only public list/rating info."""
+    out = Path("docs/index.html") if args.out == Path("dashboard.html") else args.out
+    out.parent.mkdir(parents=True, exist_ok=True)
+    client = LeetCodeClient("", "")  # unauthenticated on purpose
+    lists = load_lists(client)
+    hits = hits_by_slug(lists)
+    today = datetime.now()
+    subs, notes = make_demo(hits, {}, {}, today)
+    difficulties = cached_json("difficulties", client.difficulties)
+    reviews = compute_reviews(subs, difficulties, load_ratings(), hits, today)
+    data = build_data(subs, reviews, lists, notes, today, make_daily(today))
+    data["demo"] = True
+    html = TEMPLATE.read_text().replace("__DATA__", json.dumps(data, ensure_ascii=False).replace("</", "<\\/"))
+    out.write_text(html)
+    print(f"已生成 {out.resolve()}（全部为随机示例数据）")
+
+
 def main():
     ap = argparse.ArgumentParser(description="生成本地复习仪表盘 dashboard.html")
     ap.add_argument("--out", type=Path, default=Path("dashboard.html"))
     ap.add_argument("--no-open", action="store_true")
+    ap.add_argument("--demo", action="store_true",
+                    help="用完全随机生成的示例数据生成 docs/index.html（不读取你的账号，可安全公开）")
     args = ap.parse_args()
+    if args.demo:
+        return build_demo_page(args)
 
     console = Console()
     client = LeetCodeClient()
