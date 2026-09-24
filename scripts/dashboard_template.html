@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LeetCode 复习仪表盘</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-1: #fcfcfb; --surface-2: #f4f3f0;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+  --grid: #e6e5e1; --border: #dddcd6;
+  --series-1: #2a78d6; --series-2: #eb6834; --neutral: #c9c8c2;
+  --heat-0: #ecebe7; --heat-1: #9ec5f4; --heat-2: #6da7ec; --heat-3: #2a78d6; --heat-4: #184f95;
+  --ring: #fcfcfb;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #232321;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #9a9990;
+    --grid: #2e2e2c; --border: #3a3a37;
+    --series-1: #3987e5; --series-2: #d95926; --neutral: #4a4a46;
+    --heat-0: #2a2a28; --heat-1: #184f95; --heat-2: #256abf; --heat-3: #3987e5; --heat-4: #86b6ef;
+    --ring: #1a1a19;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-1: #1a1a19; --surface-2: #232321;
+  --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #9a9990;
+  --grid: #2e2e2c; --border: #3a3a37;
+  --series-1: #3987e5; --series-2: #d95926; --neutral: #4a4a46;
+  --heat-0: #2a2a28; --heat-1: #184f95; --heat-2: #256abf; --heat-3: #3987e5; --heat-4: #86b6ef;
+  --ring: #1a1a19;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface-1); color: var(--text-primary);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 16px; margin: 0 0 4px; }
+.sub { color: var(--text-secondary); margin: 0 0 16px; font-size: 13px; }
+section { margin-top: 32px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 16px; }
+.kpi { background: var(--surface-2); border-radius: 8px; padding: 12px 16px; }
+.kpi .v { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi .l { color: var(--text-secondary); font-size: 12px; }
+.controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 8px 0 12px; color: var(--text-secondary); font-size: 13px; }
+select, button { font: inherit; color: var(--text-primary); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; }
+button { cursor: pointer; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; color: var(--text-secondary); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 7px 8px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+a { color: var(--series-1); text-decoration: none; } a:hover { text-decoration: underline; }
+.chips { color: var(--text-secondary); font-size: 12px; }
+.bar { display: inline-block; width: 60px; height: 8px; background: var(--grid); border-radius: 4px; vertical-align: middle; margin-right: 6px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--series-1); border-radius: 0 4px 4px 0; }
+.bar.low > i { background: var(--series-2); }
+.note { font-size: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
+svg { display: block; max-width: 100%; height: auto; }
+svg text { fill: var(--text-secondary); font: 11px -apple-system, "PingFang SC", sans-serif; }
+svg .val { fill: var(--text-primary); }
+.cov { display: grid; grid-template-columns: 130px 1fr 150px; gap: 8px 12px; align-items: center; font-size: 13px; }
+.cov .track { display: flex; gap: 2px; height: 14px; }
+.cov .track > div { min-width: 0; }
+.cov .track > div:first-child { border-radius: 4px 0 0 4px; } .cov .track > div:last-child { border-radius: 0 4px 4px 0; }
+.cov .cnt { color: var(--text-secondary); font-variant-numeric: tabular-nums; font-size: 12px; text-align: right; }
+details { margin-top: 12px; font-size: 13px; } summary { cursor: pointer; color: var(--text-secondary); }
+details p { margin: 6px 0; color: var(--text-secondary); line-height: 1.8; }
+#tip { position: fixed; pointer-events: none; background: var(--text-primary); color: var(--surface-1); padding: 6px 10px;
+  border-radius: 6px; font-size: 12px; line-height: 1.4; max-width: 280px; opacity: 0; transition: opacity .08s; z-index: 10; }
+[data-tip] { cursor: default; }
+@media (max-width: 640px) { .cov { grid-template-columns: 1fr; } .cov .cnt { text-align: left; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>LeetCode 复习仪表盘</h1>
+  <p class="sub" id="asof"></p>
+  <div class="kpis" id="kpis"></div>
+
+  <section>
+    <h2>今日复习队列</h2>
+    <p class="sub">按优先级排序：忘得越久、命中题单越多越靠前。保持率 = 0.5^(距上次 AC 天数 ÷ 复习间隔)，≤50% 视为到期。</p>
+    <div class="controls">
+      <label>题单 <select id="f-list"><option value="">全部</option></select></label>
+      <label>难度 <select id="f-diff"><option value="">全部</option><option>Easy</option><option>Medium</option><option>Hard</option></select></label>
+      <label><input type="checkbox" id="f-due" checked> 只看到期</label>
+      <label><input type="checkbox" id="f-nonote"> 只看没笔记</label>
+      <span id="q-count"></span>
+    </div>
+    <div class="tablewrap"><table id="queue"></table></div>
+    <p><button id="more">显示更多</button></p>
+  </section>
+
+  <section>
+    <h2>记忆保持率分布</h2>
+    <p class="sub">每根柱是一段保持率区间里的题数。越靠左越接近遗忘。</p>
+    <div id="hist"></div>
+  </section>
+
+  <section>
+    <h2>遗忘曲线</h2>
+    <p class="sub">选一道题，看它现在处在曲线的哪个位置。</p>
+    <div class="controls"><label>题目 <select id="curve-pick"></select></label></div>
+    <div id="curve"></div>
+  </section>
+
+  <section>
+    <h2>做题热力图</h2>
+    <p class="sub">最近一年每天的 AC 提交数。</p>
+    <div id="heat"></div>
+  </section>
+
+  <section>
+    <h2>题单覆盖进度</h2>
+    <p class="sub">每个题单里，保持率仍新鲜 / 已到期 / 还没做过的题数。</p>
+    <div class="legend"><span style="--c:var(--series-1)">新鲜（保持率 &gt; 50%）</span><span style="--c:var(--series-2)">已到期</span><span style="--c:var(--neutral)">没做过</span></div>
+    <div class="cov" id="cov"></div>
+    <div id="missing"></div>
+  </section>
+</main>
+<div id="tip"></div>
+
+<script>
+const D = __DATA__;
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pct = (x) => Math.round(x * 100) + "%";
+const url = (slug) => `https://leetcode.com/problems/${slug}/`;
+const P = D.problems;
+
+// tooltip
+const tip = $("#tip");
+document.addEventListener("mousemove", (e) => {
+  const t = e.target.closest("[data-tip]");
+  if (!t) { tip.style.opacity = 0; return; }
+  tip.innerHTML = t.dataset.tip;
+  tip.style.opacity = 1;
+  const w = tip.offsetWidth;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - w - 8) + "px";
+  tip.style.top = e.clientY + 16 + "px";
+});
+
+// KPIs
+const due = P.filter((p) => p.retention <= 0.5);
+const avg = P.reduce((a, p) => a + p.retention, 0) / (P.length || 1);
+$("#asof").textContent = `截至 ${D.today} · 数据来自你的 LeetCode 提交历史`;
+$("#kpis").innerHTML = [
+  [P.length, "做过的题（去重）"], [due.length, "今日到期"], [pct(avg), "平均记忆保持率"],
+  [P.filter((p) => p.note).length, `已写笔记（共 ${D.notes_total} 篇）`],
+].map(([v, l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+
+// queue
+const listSel = $("#f-list");
+[...new Set(P.flatMap((p) => p.lists))].sort().forEach((n) => listSel.insertAdjacentHTML("beforeend", `<option>${esc(n)}</option>`));
+let shown = 30;
+function renderQueue() {
+  const l = listSel.value, d = $("#f-diff").value, onlyDue = $("#f-due").checked, noNote = $("#f-nonote").checked;
+  const rows = P.filter((p) => (!l || p.lists.includes(l)) && (!d || p.difficulty === d) && (!onlyDue || p.retention <= 0.5) && (!noNote || !p.note));
+  $("#q-count").textContent = `共 ${rows.length} 题`;
+  $("#more").style.display = rows.length > shown ? "" : "none";
+  $("#queue").innerHTML = `<thead><tr><th>#</th><th>题目</th><th>难度</th><th class="num">分数</th><th>保持率</th><th class="num">上次 AC</th><th class="num">AC 次数</th><th>题单</th><th>笔记</th></tr></thead><tbody>` +
+    rows.slice(0, shown).map((p) => `<tr>
+      <td class="num">${p.rank}</td>
+      <td><a href="${url(p.slug)}" target="_blank" rel="noopener">${esc(p.title)}</a></td>
+      <td>${p.difficulty}</td><td class="num">${p.rating ?? "–"}</td>
+      <td><span class="bar ${p.retention < 0.15 ? "low" : ""}" data-tip="保持率 ${pct(p.retention)}<br>复习间隔 ${p.interval} 天，已过 ${Math.round(p.elapsed)} 天"><i style="width:${Math.max(4, p.retention * 100)}%"></i></span>${pct(p.retention)}</td>
+      <td class="num">${p.last}</td><td class="num">${p.times}</td>
+      <td class="chips">${esc(p.lists.join(" · ")) || "–"}</td>
+      <td class="note">${p.note ? `<a href="${p.note}" target="_blank" rel="noopener">${esc(p.topic || "笔记")}</a>` : "–"}</td></tr>`).join("") + "</tbody>";
+}
+["#f-list", "#f-diff", "#f-due", "#f-nonote"].forEach((s) => $(s).addEventListener("change", () => { shown = 30; renderQueue(); }));
+$("#more").addEventListener("click", () => { shown += 30; renderQueue(); });
+renderQueue();
+
+// histogram
+(function () {
+  const bins = Array(10).fill(0);
+  P.forEach((p) => bins[Math.min(9, Math.floor(p.retention * 10))]++);
+  const W = 640, H = 200, m = { l: 34, r: 8, t: 16, b: 28 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const max = Math.max(...bins, 1), bw = iw / 10;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="记忆保持率分布直方图">`;
+  [0, 0.5, 1].forEach((f) => {
+    const y = m.t + ih * (1 - f);
+    s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y}" y2="${y}" stroke="var(--grid)"/><text x="${m.l - 6}" y="${y + 4}" text-anchor="end">${Math.round(max * f)}</text>`;
+  });
+  bins.forEach((n, i) => {
+    const h = (n / max) * ih, x = m.l + i * bw + 3, y = m.t + ih - h;
+    const c = i < 5 ? "var(--series-2)" : "var(--series-1)";
+    s += `<g data-tip="保持率 ${i * 10}–${i * 10 + 10}%<br>${n} 题">
+      <rect x="${m.l + i * bw}" y="${m.t}" width="${bw}" height="${ih}" fill="transparent"/>
+      ${n ? `<path d="M${x},${m.t + ih} V${y + 4} a4,4 0 0 1 4,-4 H${x + bw - 6 - 4} a4,4 0 0 1 4,4 V${m.t + ih} Z" fill="${c}"/>` : ""}
+      ${n ? `<text class="val" x="${x + (bw - 6) / 2}" y="${y - 4}" text-anchor="middle">${n}</text>` : ""}
+      <text x="${x + (bw - 6) / 2}" y="${H - 8}" text-anchor="middle">${i * 10}%</text></g>`;
+  });
+  $("#hist").innerHTML = s + "</svg><div class='legend'><span style='--c:var(--series-2)'>已到期（≤50%）</span><span style='--c:var(--series-1)'>仍新鲜</span></div>";
+})();
+
+// forgetting curve
+const pick = $("#curve-pick");
+P.slice(0, 100).forEach((p, i) => pick.insertAdjacentHTML("beforeend", `<option value="${i}">${esc(p.title)}</option>`));
+function renderCurve() {
+  const p = P[+pick.value || 0];
+  if (!p) { $("#curve").innerHTML = ""; return; }
+  const W = 640, H = 240, m = { l: 40, r: 16, t: 16, b: 32 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const tmax = Math.max(p.elapsed * 1.15, p.interval * 4, 7);
+  const X = (t) => m.l + (t / tmax) * iw, Y = (r) => m.t + (1 - r) * ih;
+  let path = "";
+  for (let i = 0; i <= 80; i++) { const t = (tmax * i) / 80; path += `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(0.5 ** (t / p.interval)).toFixed(1)}`; }
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(p.title)} 的遗忘曲线">`;
+  [0, 0.5, 1].forEach((r) => { s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(r)}" y2="${Y(r)}" stroke="var(--grid)" ${r === 0.5 ? 'stroke-dasharray="4 4"' : ""}/><text x="${m.l - 6}" y="${Y(r) + 4}" text-anchor="end">${pct(r)}</text>`; });
+  s += `<text x="${m.l}" y="${H - 8}">上次 AC</text><text x="${W - m.r}" y="${H - 8}" text-anchor="end">${Math.round(tmax)} 天后</text>`;
+  s += `<line x1="${X(p.interval)}" x2="${X(p.interval)}" y1="${m.t}" y2="${m.t + ih}" stroke="var(--text-muted)" stroke-dasharray="2 3"/><text x="${X(p.interval) + 4}" y="${m.t + 10}">到期点 ${p.interval} 天</text>`;
+  s += `<path d="${path}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round"/>`;
+  const cx = X(p.elapsed), cy = Y(p.retention), late = p.retention <= 0.5;
+  s += `<circle cx="${cx}" cy="${cy}" r="5" fill="${late ? "var(--series-2)" : "var(--series-1)"}" stroke="var(--ring)" stroke-width="2" data-tip="今天：距上次 AC ${Math.round(p.elapsed)} 天<br>保持率 ${pct(p.retention)}"/>`;
+  s += `<text class="val" x="${Math.min(cx + 10, W - 90)}" y="${cy - 10}">今天 ${pct(p.retention)}</text></svg>`;
+  $("#curve").innerHTML = s + `<p class="sub">上次 AC ${p.last} · 共 AC ${p.times} 次 · ${esc(p.lists.join(" · ")) || "不在任何题单"} · <a href="${url(p.slug)}" target="_blank" rel="noopener">打开题目</a></p>`;
+}
+pick.addEventListener("change", renderCurve);
+renderCurve();
+
+// heatmap
+(function () {
+  const end = new Date(D.today + "T00:00:00"), start = new Date(end);
+  start.setDate(start.getDate() - 364 - end.getDay());
+  const cell = 12, gap = 3, step = cell + gap, ml = 28, mt = 18;
+  const counts = Object.values(D.daily).sort((a, b) => a - b);
+  const q = (f) => counts[Math.floor(f * (counts.length - 1))] || 1;
+  const cuts = [q(0.4), q(0.7), q(0.92)];
+  const level = (n) => (n === 0 ? 0 : n <= cuts[0] ? 1 : n <= cuts[1] ? 2 : n <= cuts[2] ? 3 : 4);
+  const fmt = (d) => d.toISOString ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : d;
+  const weeks = Math.ceil(((end - start) / 864e5 + 1) / 7);
+  let s = `<svg viewBox="0 0 ${ml + weeks * step} ${mt + 7 * step + 4}" role="img" aria-label="做题热力图">`;
+  ["一", "三", "五"].forEach((d, i) => (s += `<text x="0" y="${mt + (i * 2 + 1) * step + 10}">${d}</text>`));
+  let lastMonth = -1, total = 0;
+  for (let w = 0; w < weeks; w++) for (let d = 0; d < 7; d++) {
+    const day = new Date(start); day.setDate(start.getDate() + w * 7 + d);
+    if (day > end) continue;
+    const k = fmt(day), n = D.daily[k] || 0; total += n;
+    if (d === 0 && day.getMonth() !== lastMonth && day.getDate() <= 7) { lastMonth = day.getMonth(); s += `<text x="${ml + w * step}" y="10">${day.getMonth() + 1}月</text>`; }
+    s += `<rect x="${ml + w * step}" y="${mt + d * step}" width="${cell}" height="${cell}" rx="2" fill="var(--heat-${level(n)})" data-tip="${k}<br>${n} 次 AC"/>`;
+  }
+  s += "</svg>";
+  const legend = `<div class="legend" style="margin-top:8px">少 ${[0, 1, 2, 3, 4].map((i) => `<span style="--c:var(--heat-${i})"></span>`).join("")} 多 · 近一年共 ${total} 次 AC，约 ${Object.keys(D.daily).length} 个活跃日</div>`;
+  $("#heat").innerHTML = `<div class="tablewrap">${s}</div>${legend}`;
+})();
+
+// coverage
+(function () {
+  $("#cov").innerHTML = D.coverage.map((c) => {
+    const w = (n) => (n / c.total) * 100;
+    return `<div>${esc(c.name)}</div>
+      <div class="track" role="img" aria-label="${esc(c.name)}：新鲜 ${c.fresh}，到期 ${c.due}，没做过 ${c.missing}">
+        <div style="flex:${w(c.fresh)};background:var(--series-1)" data-tip="${esc(c.name)}<br>新鲜 ${c.fresh} 题"></div>
+        <div style="flex:${w(c.due)};background:var(--series-2)" data-tip="${esc(c.name)}<br>已到期 ${c.due} 题"></div>
+        <div style="flex:${w(c.missing)};background:var(--neutral)" data-tip="${esc(c.name)}<br>没做过 ${c.missing} 题"></div></div>
+      <div class="cnt">${c.fresh} / ${c.due} / ${c.missing}（共 ${c.total}）</div>`;
+  }).join("");
+  $("#missing").innerHTML = D.coverage.filter((c) => c.missing).map((c) =>
+    `<details><summary>${esc(c.name)}：还没做过的 ${c.missing} 题</summary><p>${c.missing_slugs.map((s) => `<a href="${url(s)}" target="_blank" rel="noopener">${esc(s)}</a>`).join("　")}${c.missing > c.missing_slugs.length ? "　…" : ""}</p></details>`).join("");
+})();
+</script>
+</body>
+</html>
