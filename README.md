@@ -2,6 +2,8 @@
 
 You solve hundreds of problems and forget them a few months later. This tool reads your full LeetCode submission history and uses a spaced-repetition (memory curve) model to pick **the problems most worth redoing today**, favoring ones that keep showing up in NeetCode 250, Top 100, Top Interview 150 and company lists like Google and Apple. It can sync the list to Notion and build a local dashboard.
 
+**[Live demo](https://leetcode-review.netlify.app/)** — the dashboard rendered from randomly generated sample data (not a real submission history). Regenerate it with `python3 scripts/dashboard.py --demo`.
+
 ## Quick start
 
 ```bash
