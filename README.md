@@ -18,6 +18,7 @@ leetcode-toolkit reads your full LeetCode submission history and uses a spaced-r
 
 - **Full history, not the last 20.** Pulls every submission through LeetCode's GraphQL API with your own session cookie. (The public `alfa-leetcode-api` only exposes the latest ~20 submissions and cannot paginate, which is not enough for a memory model.)
 - **Forgetting-curve ranking.** Each problem gets a review interval that grows every time you solve it again, adjusted for difficulty and for how often it appears in well-known lists.
+- **New problems too.** Alongside reviews it suggests today's daily challenge and unsolved problems from the interview lists, ranked by how many lists they appear in.
 - **Interview-list aware.** NeetCode 250 / 150, Blind 75, LeetCode Top 100, Top Interview 150, and company lists (Premium).
 - **Notion sync.** Upserts the queue into a Notion database and links your existing notes to the matching problems.
 - **Dashboard.** Review queue, retention distribution, per-problem forgetting curve, activity heatmap and list coverage, as one local HTML file.
@@ -51,10 +52,10 @@ You should see a table like this. The column headers are in Chinese; the rows be
 
 | Command | What it does |
 |---|---|
-| `python3 scripts/review.py` | Print today's review queue (`--all` includes problems not yet due, `--limit N`, `--export out.csv`) |
+| `python3 scripts/review.py` | Print today's review queue (`--all` includes problems not yet due, `--limit N`, `--new N` for how many new problems to suggest, `--export out.csv`) |
 | `python3 scripts/dashboard.py` | Build `dashboard.html` from your real history and open it (`--no-open` to skip opening) |
 | `python3 scripts/dashboard.py --demo` | Build `docs/index.html` from random sample data; needs no cookie and is safe to publish |
-| `python3 scripts/sync.py` | Sync the top 50 problems to Notion (`--limit N`, `--all`) |
+| `python3 scripts/sync.py` | Sync the top 50 reviews plus new-problem suggestions to Notion (`--limit N`, `--new N`, `--all`) |
 | `python3 scripts/explain.py two-sum` | Layered hints from Claude for a problem (`--language python`) |
 | `python3 scripts/daily.py` | Print today's daily challenge |
 | `python3 -m pytest tests` | Run the unit tests |
@@ -70,6 +71,10 @@ A problem is **due** once more than one review interval has passed since your la
 5. **Ranking** is `forget probability × (1 + 0.25 × hits)`. Long-forgotten problems all sit near 1, so among those the ones that appear in more lists come first.
 
 Example: a Medium problem you solved twice, without a rating, that appears in 3 lists has an interval of `3 days × 1.0 / 1.3 ≈ 2.3 days`. Six days after your last solve, it is well overdue and ranks high.
+
+### New problems
+
+Besides the review queue, `review.py`, `sync.py` and the dashboard suggest new problems: today's daily challenge (unless you already solved it), then up to 10 problems from the lists you haven't solved yet. They are ordered by how many lists they appear in; ties go to the lower contest rating, and problems rated above 2000 go last. Difficulties in `EXCLUDE_DIFFICULTIES` are skipped, except for the daily challenge. Use `--new N` to change the number, or `--new 0` to turn it off.
 
 Every constant lives at the top of [review/spaced_repetition.py](review/spaced_repetition.py).
 
@@ -99,8 +104,9 @@ Create a database with these properties (names and types must match exactly) and
 | `Last AC` | Date |
 | `Lists` | Multi-select |
 | `URL` | URL |
+| `Type` | Select (options `Review`, `New`, `Daily`) |
 
-`sync.py` upserts by `Slug`, so re-running updates rows instead of duplicating them.
+New problems have no `Last AC`, `AC Count` or `Overdue Days`, so those stay empty for them. `sync.py` refuses to run if the `Type` property is missing. It upserts by `Slug`, so re-running updates rows instead of duplicating them.
 
 **Linking your existing notes (optional).** Add `Notes` (URL) and `Topic` (Select) properties, set `NOTION_NOTES_PAGE_ID` to the root page of your notes, and share that page with the integration (••• → Connections). The sync scans its child pages, including pages one level down and inside toggles, and reads the problem number from a page title such as `76. Minimum Window Substring` or `滑动窗口 - 3. Longest Substring…`. Matching rows get the page link in `Notes` and the parent page's name in `Topic`. Problems you have notes for are synced even when they fall outside the top N.
 

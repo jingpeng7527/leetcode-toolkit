@@ -32,3 +32,12 @@ def test_parse_problem_number():
 def test_notion_properties_with_note():
     p = build_properties(review(), {"url": "https://www.notion.so/abc", "topic": "滑动窗口"})
     assert p["Notes"] == {"url": "https://www.notion.so/abc"} and p["Topic"]["select"]["name"] == "滑动窗口"
+
+
+def test_new_problem_properties_have_type_and_no_review_fields():
+    from integrations.notion import build_new_properties
+    from review.models import NewProblem
+    p = build_new_properties(NewProblem("two-sum", "Two Sum", "Easy", None, ["Top100"], "Daily"))
+    assert p["Type"]["select"]["name"] == "Daily" and p["Slug"]["rich_text"][0]["text"]["content"] == "two-sum"
+    assert not {"Last AC", "AC Count", "Overdue Days"} & set(p)
+    assert build_properties(review())["Type"]["select"]["name"] == "Review"

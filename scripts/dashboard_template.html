@@ -99,6 +99,12 @@ details p { margin: 6px 0; color: var(--text-secondary); line-height: 1.8; }
     <p><button id="more">显示更多</button></p>
   </section>
 
+  <section id="new-sec">
+    <h2>新题推荐</h2>
+    <p class="sub">今日每日一题，加上高频题单里还没做过的题（命中题单越多越靠前，评分超过 2000 的靠后）。</p>
+    <div class="tablewrap"><table id="newtable"></table></div>
+  </section>
+
   <section>
     <h2>记忆保持率分布</h2>
     <p class="sub">每根柱是一段保持率区间里的题数。越靠左越接近遗忘。</p>
@@ -180,6 +186,17 @@ function renderQueue() {
 ["#f-list", "#f-diff", "#f-due", "#f-nonote"].forEach((s) => $(s).addEventListener("change", () => { shown = 30; renderQueue(); }));
 $("#more").addEventListener("click", () => { shown += 30; renderQueue(); });
 renderQueue();
+
+// new problems
+(function () {
+  const N = D.new || [];
+  if (!N.length) { $("#new-sec").style.display = "none"; return; }
+  $("#newtable").innerHTML = `<thead><tr><th>类型</th><th>题目</th><th>难度</th><th class="num">分数</th><th>所在题单</th></tr></thead><tbody>` +
+    N.map((p) => `<tr><td>${p.kind === "Daily" ? "每日一题" : "新题"}</td>
+      <td><a href="${url(p.slug)}" target="_blank" rel="noopener">${esc(p.title)}</a></td>
+      <td>${p.difficulty}</td><td class="num">${p.rating ?? "–"}</td>
+      <td class="chips">${esc(p.lists.join(" · ")) || "–"}</td></tr>`).join("") + "</tbody>";
+})();
 
 // histogram
 (function () {

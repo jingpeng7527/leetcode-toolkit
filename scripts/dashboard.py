@@ -15,9 +15,11 @@ from api.cache import cached_json
 from api.lists import hits_by_slug, load_lists
 from api.rating import load_ratings
 from review.spaced_repetition import compute_reviews
-from scripts.demo_data import make_daily, make_demo
+from scripts.demo_data import make_daily, make_demo, title_from_slug
 from api.client import AuthError, LeetCodeClient
-from review.pipeline import load_all
+from review.new_problems import pick_new_problems
+from review.pipeline import load_all, load_new_problems
+from review.spaced_repetition import filter_reviews
 
 TEMPLATE = Path(__file__).with_name("dashboard_template.html")
 LIST_LABELS = {"NeetCode250": "NeetCode 250", "NeetCode150": "NeetCode 150", "Blind75": "Blind 75",
@@ -29,7 +31,7 @@ def label(name: str) -> str:
 
 
 def build_data(subs, reviews, lists, notes, today: datetime, daily_override: dict | None = None,
-               exclude_difficulties: frozenset | set = frozenset()) -> dict:
+               exclude_difficulties: frozenset | set = frozenset(), new=()) -> dict:
     """Excluded difficulties leave the review queue, but still count as solved for totals and list coverage."""
     records = []
     for r in reviews:
@@ -67,6 +69,9 @@ def build_data(subs, reviews, lists, notes, today: datetime, daily_override: dic
     return {
         "today": today.strftime("%Y-%m-%d"), "problems": problems, "coverage": coverage, "daily": daily,
         "notes_total": len(notes), "solved_total": len(records), "excluded": sorted(exclude_difficulties),
+        "new": [{"slug": p.title_slug, "title": p.title, "difficulty": p.difficulty,
+                 "rating": round(p.rating) if p.rating else None, "lists": [label(n) for n in p.lists], "kind": p.kind}
+                for p in new],
     }
 
 
@@ -81,7 +86,9 @@ def build_demo_page(args):
     subs, notes = make_demo(hits, {}, {}, today)
     difficulties = cached_json("difficulties", client.difficulties)
     reviews = compute_reviews(subs, difficulties, load_ratings(), hits, today)
-    data = build_data(subs, reviews, lists, notes, today, make_daily(today))
+    problemset = {s: {"title": title_from_slug(s), "difficulty": d} for s, d in difficulties.items()}
+    new = pick_new_problems(lists, {r.title_slug for r in reviews}, problemset, load_ratings(), {"Easy"}, 10)
+    data = build_data(subs, reviews, lists, notes, today, make_daily(today), new=new)
     data["demo"] = True
     html = TEMPLATE.read_text().replace("__DATA__", json.dumps(data, ensure_ascii=False).replace("</", "<\\/"))
     out.write_text(html)
@@ -102,6 +109,7 @@ def main():
     client = LeetCodeClient()
     try:
         subs, reviews, lists = load_all(client, console.status)
+        new = load_new_problems(client, reviews, lists, 10)
     except AuthError as e:
         sys.exit(f"错误：{e}")
     notes = {}
@@ -113,7 +121,8 @@ def main():
         except Exception as e:
             console.print(f"[yellow]跳过笔记关联：{e}[/yellow]")
 
-    data = build_data(subs, reviews, lists, notes, datetime.now(), exclude_difficulties=config.EXCLUDE_DIFFICULTIES)
+    data = build_data(subs, reviews, lists, notes, datetime.now(), exclude_difficulties=config.EXCLUDE_DIFFICULTIES,
+                      new=new)
     html = TEMPLATE.read_text().replace("__DATA__", json.dumps(data, ensure_ascii=False).replace("</", "<\\/"))
     args.out.write_text(html)
     console.print(f"已生成 {args.out.resolve()}")

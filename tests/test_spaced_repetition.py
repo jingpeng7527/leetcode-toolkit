@@ -52,3 +52,16 @@ def test_filter_reviews_drops_excluded_difficulties():
     reviews = compute_reviews(subs, {"e": "Easy", "m": "Medium", "h": "Hard"}, {}, {}, NOW)
     assert {r.title_slug for r in filter_reviews(reviews, {"Easy"})} == {"m", "h"}
     assert len(filter_reviews(reviews, set())) == 3
+
+
+def test_pick_new_problems():
+    from review.new_problems import pick_new_problems
+    lists = {"A": ["done", "hot", "easy", "cold", "daily-one"], "B": ["hot", "easy", "cold"], "C": ["hot"]}
+    ps = {s: {"title": s.title(), "difficulty": d} for s, d in
+          {"done": "Medium", "hot": "Hard", "easy": "Easy", "cold": "Medium", "daily-one": "Medium"}.items()}
+    daily = {"slug": "daily-one", "title": "Daily One", "difficulty": "Medium"}
+    got = pick_new_problems(lists, {"done"}, ps, {}, {"Easy"}, 5, daily)
+    assert [p.title_slug for p in got] == ["daily-one", "hot", "cold"]  # daily first; solved and Easy dropped; hot has most lists
+    assert got[0].kind == "Daily" and got[1].kind == "New"
+    assert [p.title_slug for p in pick_new_problems(lists, {"done"}, ps, {}, {"Easy"}, 1, None)] == ["hot"]
+    assert pick_new_problems(lists, {"done", "daily-one"}, ps, {}, set(), 0, daily) == []  # daily already solved
