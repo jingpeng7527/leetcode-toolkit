@@ -2,11 +2,17 @@
 
 **Stop re-solving problems you remember. Redo the ones you've forgotten.**
 
+[![tests](https://github.com/jingpeng7527/leetcode-toolkit/actions/workflows/tests.yml/badge.svg)](https://github.com/jingpeng7527/leetcode-toolkit/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+
 leetcode-toolkit reads your full LeetCode submission history and uses a spaced-repetition (memory curve) model to rank the problems most worth redoing today. Problems that keep showing up in interview lists — NeetCode 250, Top 100, Top Interview 150, Google, Apple — are pushed up the queue. Results can be synced to Notion, and there is a dashboard to browse them.
 
 [![Dashboard preview](docs/screenshot.png)](https://leetcode-review.netlify.app/)
 
 <sub>The screenshot and the [live demo](https://leetcode-review.netlify.app/) are rendered from randomly generated sample data, not a real submission history.</sub>
+
+**Contents:** [Features](#features) · [Quick start](#quick-start) · [Commands](#commands) · [How the ranking works](#how-the-ranking-works) · [Configuration](#configuration) · [Dashboard](#dashboard) · [Roadmap](#roadmap) · [Contributing](#contributing)
 
 ## Features
 
@@ -18,6 +24,8 @@ leetcode-toolkit reads your full LeetCode submission history and uses a spaced-r
 - **Extras.** Claude-generated hints for a problem (hints first, not full solutions) and today's daily challenge.
 
 ## Quick start
+
+Requires Python 3.10 or newer.
 
 ```bash
 git clone https://github.com/jingpeng7527/leetcode-toolkit.git
@@ -123,10 +131,24 @@ tests/
 - **A company list is empty or skipped?** The account behind the cookies is probably not Premium.
 - **Notion says a property doesn't exist?** Property names must match the table above exactly, including `Notes` and `Topic` when notes linking is on.
 
+## Roadmap
+
+- [ ] Configurable review intervals and weights from `.env`, instead of editing constants
+- [ ] Filter the queue to one list or company (`--list google`)
+- [ ] leetcode.cn support
+- [ ] A single `leetcode-toolkit` command instead of separate scripts
+- [ ] Scheduled sync, so the Notion database stays fresh without running anything by hand
+
+Ideas and pull requests are welcome.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup and ground rules. The short version: keep tests offline, and never commit cookies, API keys or your own submission data. Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
+
 ## Credits
 
 Contest ratings by [zerotrac/leetcode_problem_rating](https://github.com/zerotrac/leetcode_problem_rating). NeetCode 150 and Blind 75 flags from [neetcode-gh/leetcode](https://github.com/neetcode-gh/leetcode).
 
 ## License
 
-MIT
+[MIT](LICENSE)
