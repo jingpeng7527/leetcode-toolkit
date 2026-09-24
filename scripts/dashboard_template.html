@@ -154,7 +154,7 @@ const due = P.filter((p) => p.retention <= 0.5);
 const avg = P.reduce((a, p) => a + p.retention, 0) / (P.length || 1);
 $("#asof").textContent = D.demo ? `截至 ${D.today}` : `截至 ${D.today} · 数据来自你的 LeetCode 提交历史`;
 $("#kpis").innerHTML = [
-  [P.length, "做过的题（去重）"], [due.length, "今日到期"], [pct(avg), "平均记忆保持率"],
+  [D.solved_total ?? P.length, "做过的题（去重）"], [due.length, "今日到期"], [pct(avg), "平均记忆保持率"],
   [P.filter((p) => p.note || p.topic).length, `已写笔记（共 ${D.notes_total} 篇）`],
 ].map(([v, l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
 
@@ -165,7 +165,7 @@ let shown = 30;
 function renderQueue() {
   const l = listSel.value, d = $("#f-diff").value, onlyDue = $("#f-due").checked, noNote = $("#f-nonote").checked;
   const rows = P.filter((p) => (!l || p.lists.includes(l)) && (!d || p.difficulty === d) && (!onlyDue || p.retention <= 0.5) && (!noNote || !p.note));
-  $("#q-count").textContent = `共 ${rows.length} 题`;
+  $("#q-count").textContent = `共 ${rows.length} 题` + ((D.excluded || []).length ? `（不含 ${D.excluded.join("、")}）` : "");
   $("#more").style.display = rows.length > shown ? "" : "none";
   $("#queue").innerHTML = `<thead><tr><th>#</th><th>题目</th><th>难度</th><th class="num">分数</th><th>保持率</th><th class="num">上次 AC</th><th class="num">AC 次数</th><th>题单</th><th>笔记</th></tr></thead><tbody>` +
     rows.slice(0, shown).map((p) => `<tr>

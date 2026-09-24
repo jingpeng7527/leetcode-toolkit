@@ -80,6 +80,7 @@ Copy `.env.example` to `.env` and fill in what you need.
 | Variable | Required for | Notes |
 |---|---|---|
 | `LEETCODE_SESSION`, `LEETCODE_CSRFTOKEN` | review, dashboard, sync | See [Quick start](#quick-start) |
+| `EXCLUDE_DIFFICULTIES` | review queue | Difficulties to leave out of the queue, comma separated. Default `Easy`; set it empty to keep everything. Excluded problems still count as solved in the dashboard totals and list coverage |
 | `COMPANIES` | company lists | Comma separated, default `google,apple`. Needs cookies from a **LeetCode Premium** account; lists that can't be fetched are skipped with a warning |
 | `NOTION_API_KEY`, `NOTION_DATABASE_ID` | Notion sync | See below |
 | `NOTION_NOTES_PAGE_ID` | linking existing notes | Optional |

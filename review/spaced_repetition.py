@@ -64,3 +64,8 @@ def compute_reviews(
         ))
     reviews.sort(key=lambda r: (r.priority, r.days_overdue), reverse=True)
     return reviews
+
+
+def filter_reviews(reviews: list[ProblemReview], exclude_difficulties: set[str]) -> list[ProblemReview]:
+    """Drop problems of the excluded difficulties (e.g. {"Easy"}) from a review queue."""
+    return [r for r in reviews if r.difficulty not in exclude_difficulties]

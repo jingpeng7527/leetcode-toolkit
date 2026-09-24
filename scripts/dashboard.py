@@ -28,20 +28,23 @@ def label(name: str) -> str:
     return LIST_LABELS.get(name) or name.removeprefix("co:").capitalize()
 
 
-def build_data(subs, reviews, lists, notes, today: datetime, daily_override: dict | None = None) -> dict:
-    problems = []
-    for i, r in enumerate(reviews):
+def build_data(subs, reviews, lists, notes, today: datetime, daily_override: dict | None = None,
+               exclude_difficulties: frozenset | set = frozenset()) -> dict:
+    """Excluded difficulties leave the review queue, but still count as solved for totals and list coverage."""
+    records = []
+    for r in reviews:
         elapsed = max(0.0, (today - r.last_solved).total_seconds() / 86400)
         note = notes.get(r.title_slug)
-        problems.append({
-            "rank": i + 1, "slug": r.title_slug, "title": r.title, "difficulty": r.difficulty,
+        records.append({
+            "slug": r.title_slug, "title": r.title, "difficulty": r.difficulty,
             "rating": round(r.rating) if r.rating else None, "lists": [label(n) for n in r.lists],
             "last": r.last_solved.strftime("%Y-%m-%d"), "times": r.times_solved,
             "interval": round(r.interval_days, 2), "elapsed": round(elapsed, 1),
             "retention": round(0.5 ** (elapsed / r.interval_days), 4),
             "note": note["url"] if note else None, "topic": note["topic"] if note else None,
         })
-    by_slug = {p["slug"]: p for p in problems}
+    by_slug = {p["slug"]: p for p in records}  # coverage sees every solved problem
+    problems = [dict(p, rank=i + 1) for i, p in enumerate(p for p in records if p["difficulty"] not in exclude_difficulties)]
 
     coverage = []
     for name, slugs in lists.items():
@@ -63,7 +66,7 @@ def build_data(subs, reviews, lists, notes, today: datetime, daily_override: dic
         s.timestamp.date().isoformat() for s in subs if s.accepted and s.timestamp.date() >= start)
     return {
         "today": today.strftime("%Y-%m-%d"), "problems": problems, "coverage": coverage, "daily": daily,
-        "notes_total": len(notes),
+        "notes_total": len(notes), "solved_total": len(records), "excluded": sorted(exclude_difficulties),
     }
 
 
@@ -110,7 +113,7 @@ def main():
         except Exception as e:
             console.print(f"[yellow]跳过笔记关联：{e}[/yellow]")
 
-    data = build_data(subs, reviews, lists, notes, datetime.now())
+    data = build_data(subs, reviews, lists, notes, datetime.now(), exclude_difficulties=config.EXCLUDE_DIFFICULTIES)
     html = TEMPLATE.read_text().replace("__DATA__", json.dumps(data, ensure_ascii=False).replace("</", "<\\/"))
     args.out.write_text(html)
     console.print(f"已生成 {args.out.resolve()}")

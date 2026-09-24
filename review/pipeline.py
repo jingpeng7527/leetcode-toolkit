@@ -1,10 +1,11 @@
 from datetime import datetime
 
+import config
 from api.client import LeetCodeClient
 from api.lists import hits_by_slug, load_lists
 from api.rating import load_ratings
 from review.models import ProblemReview, Submission
-from review.spaced_repetition import compute_reviews
+from review.spaced_repetition import compute_reviews, filter_reviews
 
 
 def load_all(client: LeetCodeClient, status=None):
@@ -26,7 +27,8 @@ def load_all(client: LeetCodeClient, status=None):
 
 
 def load_reviews(client: LeetCodeClient, status=None) -> list[ProblemReview]:
-    return load_all(client, status)[1]
+    """Ranked review queue, without the difficulties listed in EXCLUDE_DIFFICULTIES (default Easy)."""
+    return filter_reviews(load_all(client, status)[1], config.EXCLUDE_DIFFICULTIES)
 
 
 class _Noop:

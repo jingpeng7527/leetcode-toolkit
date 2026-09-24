@@ -44,3 +44,11 @@ def test_list_hits_shorten_interval_and_boost_rank():
     r = compute_reviews(subs, {"plain": "Medium", "hot": "Medium"}, {}, {"hot": ["Top100", "co:google"]}, NOW)
     assert r[0].title_slug == "hot"
     assert r[0].interval_days < r[1].interval_days
+
+
+def test_filter_reviews_drops_excluded_difficulties():
+    from review.spaced_repetition import filter_reviews
+    subs = [sub("e", 5), sub("m", 5), sub("h", 5)]
+    reviews = compute_reviews(subs, {"e": "Easy", "m": "Medium", "h": "Hard"}, {}, {}, NOW)
+    assert {r.title_slug for r in filter_reviews(reviews, {"Easy"})} == {"m", "h"}
+    assert len(filter_reviews(reviews, set())) == 3
