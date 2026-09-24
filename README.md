@@ -1,103 +1,56 @@
 # leetcode-toolkit
 
-> Find the LeetCode problems worth redoing today, using a spaced-repetition (memory curve) model over your full submission history — then sync them to Notion and browse them in a local dashboard.
+You solve hundreds of problems and forget them a few months later. This tool reads your full LeetCode submission history and uses a spaced-repetition (memory curve) model to pick **the problems most worth redoing today**, favoring ones that keep showing up in NeetCode 250, Top 100, Top Interview 150 and company lists like Google and Apple. It can sync the list to Notion and build a local dashboard.
 
-## What it does
-
-- Pulls your **full** submission history from LeetCode's GraphQL API using your own session cookie. (The public `alfa-leetcode-api` only exposes the latest ~20 submissions and cannot paginate, so it cannot support this.)
-- Scores every solved problem with a forgetting-curve model and ranks what to redo first.
-- Weights problems that show up in well-known lists: NeetCode 250 / 150, Blind 75, LeetCode Top 100, Top Interview 150, and company lists (Google, Apple, … — needs LeetCode Premium).
-- Syncs the ranked list to a Notion database and links your existing Notion notes to it.
-- Generates a local HTML dashboard (queue, retention distribution, forgetting curve, heatmap, list coverage).
-- Optional: explain a problem with Claude (hints first, not full code), and print today's daily challenge.
-
-## How the ranking works
-
-1. Only accepted submissions count. `times_solved` is how many times you got a problem accepted.
-2. Base interval grows with each successful repeat: `1, 3, 7, 16, 35, 75, 160` days (then ×1.5 each time).
-3. The interval is scaled by difficulty:
-   - With a [zerotrac](https://zerotrac.github.io/leetcode_problem_rating/) contest rating: `clamp(1.3 - (rating - 1200) / 2000, 0.6, 1.3)`, and problems rated **above 2000 are postponed** (×1.5).
-   - Without a rating: Easy 1.3 / Medium 1.0 / Hard 0.7.
-4. Every list or company a problem appears in shortens its interval: `interval / (1 + 0.1 × hits)`.
-5. Retention halves every interval: `0.5 ^ (days since last AC / interval)`. A problem is **due** once retention ≤ 50%.
-6. Ranking = `forget_probability × (1 + 0.25 × hits)`, so among long-forgotten problems the ones that appear in more lists come first.
-
-All constants are at the top of [review/spaced_repetition.py](review/spaced_repetition.py).
-
-## Setup
+## Quick start
 
 ```bash
 git clone https://github.com/jingpeng7527/leetcode-toolkit.git
 cd leetcode-toolkit
 pip3 install -r requirements.txt
-cp .env.example .env
+cp .env.example .env      # then fill in your LeetCode cookies, see below
+python3 scripts/review.py
 ```
 
-Edit `.env`:
+**Getting your cookies**: log in to leetcode.com → DevTools → Application → Cookies, and copy `LEETCODE_SESSION` and `csrftoken` into `.env`. They are equivalent to your login, so never share them or commit them (`.env` is git-ignored).
 
-| Variable | Needed for |
+## Commands
+
+| Command | What it does |
 |---|---|
-| `LEETCODE_SESSION`, `LEETCODE_CSRFTOKEN` | Everything that reads your history. Copy from your browser: DevTools → Application → Cookies → `leetcode.com`. Treat them like a password. |
-| `COMPANIES` | Company lists, comma separated (default `google,apple`). Needs Premium; lists that cannot be fetched are skipped with a warning. |
-| `NOTION_API_KEY`, `NOTION_DATABASE_ID` | Notion sync |
-| `NOTION_NOTES_PAGE_ID` | Linking existing Notion notes (optional) |
-| `ANTHROPIC_API_KEY` | `explain.py` (optional) |
+| `python3 scripts/review.py` | Print today's review queue in the terminal (`--all` for everything, `--export out.csv` to save) |
+| `python3 scripts/dashboard.py` | Build and open a local dashboard: review queue, forgetting curve, activity heatmap, list coverage |
+| `python3 scripts/sync.py` | Sync the top 50 problems to Notion (`--limit N` to change) |
+| `python3 scripts/explain.py two-sum` | Layered hints from Claude for a problem, without giving away the full solution |
+| `python3 scripts/daily.py` | Today's daily challenge |
 
-`.env`, `.cache/` and `dashboard.html` are git-ignored.
+## How the ranking works
 
-## Usage
+- Each successful redo stretches the next interval: 1, 3, 7, 16, 35, 75, 160 days.
+- Harder problems get shorter intervals; problems rated above 2000 (zerotrac contest rating) are pushed back.
+- The more lists a problem appears in (NeetCode, Top 100, company lists, …), the shorter its interval and the higher it ranks.
+- A problem is due once more than one interval has passed since your last accepted submission.
 
-```bash
-python3 scripts/review.py                  # today's review queue (add --all, --limit N, --export out.csv)
-python3 scripts/dashboard.py               # build and open dashboard.html
-python3 scripts/sync.py                    # sync the top 50 to Notion (--limit N, --all)
-python3 scripts/daily.py                   # today's daily challenge
-python3 scripts/explain.py two-sum         # Claude hints for a problem (--language python)
-python3 -m pytest tests                    # unit tests
-```
+All the numbers live at the top of [review/spaced_repetition.py](review/spaced_repetition.py) if you want to tune them.
 
-## Notion setup
+## Optional configuration
 
-**Review database** — create a database with these exact property names and types:
+Set these in `.env` as needed:
 
-`Name` (title), `Slug` (text), `Difficulty` (select), `Rating` (number), `Last AC` (date), `AC Count` (number), `Overdue Days` (number), `Lists` (multi-select), `URL` (url). Share it with your Notion integration. Rows are upserted by `Slug`, so re-running updates instead of duplicating.
-
-**Linking your notes** (optional) — add `Notes` (url) and `Topic` (select) columns, set `NOTION_NOTES_PAGE_ID` to your notes root page, and share that page with the integration (••• → Connections). The sync scans the child pages (and pages one level below, including inside toggles), reads the problem number from a page title such as `76. Minimum Window Substring` or `滑动窗口 - 3. Longest Substring…`, and fills `Notes` with the page link and `Topic` with the parent page's name. Problems you have notes for are synced even if they fall outside the top N.
-
-## Project structure
-
-```
-api/
-  client.py          authenticated GraphQL client (history, problemset, study plans, company lists, daily)
-  queries.py         GraphQL query strings
-  rating.py          zerotrac ratings (slug -> rating), cached
-  lists.py           list membership (slug -> lists), cached
-  cache.py           tiny JSON file cache in .cache/
-review/
-  models.py          Submission, ProblemReview
-  spaced_repetition.py   the scoring model (pure functions, unit-tested)
-  pipeline.py        fetch everything and return ranked reviews
-integrations/
-  notion.py          upsert reviews into a Notion database
-  notion_notes.py    crawl your notes and map them to problems
-  claude.py          problem explanations via the Anthropic API
-scripts/             review, dashboard, sync, daily, explain
-data/neetcode250.json   NeetCode 250 slugs (extracted from neetcode.io, which flags them in its site data)
-tests/
-```
+- **Company lists** (`COMPANIES=google,apple`): needs cookies from a LeetCode Premium account. Lists that can't be fetched are skipped.
+- **Notion sync**: set `NOTION_API_KEY` and `NOTION_DATABASE_ID`. The database needs these properties: `Name` (title), `Slug` (text), `Difficulty` (select), `Rating`, `AC Count`, `Overdue Days` (number), `Last AC` (date), `Lists` (multi-select), `URL` (url). Share the database with your integration.
+- **Linking your existing notes**: add `Notes` (url) and `Topic` (select) properties, and set `NOTION_NOTES_PAGE_ID` to your notes root page (also shared with the integration). A note page is matched by the problem number in its title, e.g. `76. Minimum Window Substring`.
+- **Claude explanations**: set `ANTHROPIC_API_KEY`.
 
 ## Caveats
 
-- `submissionList` pagination (offset + `lastKey`) is written from public documentation of LeetCode's GraphQL API; LeetCode can change it without notice. Only leetcode.com is supported, not leetcode.cn.
-- Ratings exist only for problems that appeared in contests (~2,600); everything else falls back to Easy/Medium/Hard.
-- The NeetCode 250 list is a snapshot in `data/neetcode250.json`; re-extract it if NeetCode changes the list.
-- Your cookie expires; if requests start failing with an auth error, copy fresh values into `.env`.
+- leetcode.com only; leetcode.cn is not supported.
+- Full submission history comes from an undocumented LeetCode GraphQL endpoint, which may change.
+- Contest ratings cover only about 2,600 problems that appeared in contests; the rest fall back to Easy / Medium / Hard.
+- Cookies expire. If you get an auth error, copy fresh ones into `.env`.
 
 ## Credits
 
-- Contest ratings: [zerotrac/leetcode_problem_rating](https://github.com/zerotrac/leetcode_problem_rating)
-- NeetCode 150 / Blind 75 flags: [neetcode-gh/leetcode](https://github.com/neetcode-gh/leetcode)
+Ratings from [zerotrac/leetcode_problem_rating](https://github.com/zerotrac/leetcode_problem_rating); NeetCode lists from [neetcode-gh/leetcode](https://github.com/neetcode-gh/leetcode).
 
-## License
-
-MIT
+MIT License

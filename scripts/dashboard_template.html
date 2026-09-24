@@ -60,6 +60,7 @@ a { color: var(--series-1); text-decoration: none; } a:hover { text-decoration: 
 .bar > i { display: block; height: 100%; background: var(--series-1); border-radius: 0 4px 4px 0; }
 .bar.low > i { background: var(--series-2); }
 .note { font-size: 12px; }
+.demo-note { margin: 12px 0 0; padding: 8px 12px; border: 1px dashed var(--text-muted); border-radius: 6px; color: var(--text-secondary); font-size: 13px; }
 .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px; }
 .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
 svg { display: block; max-width: 100%; height: auto; }
@@ -134,6 +135,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const pct = (x) => Math.round(x * 100) + "%";
 const url = (slug) => `https://leetcode.com/problems/${slug}/`;
 const P = D.problems;
+if (D.demo) $("#asof").insertAdjacentHTML("afterend", '<p class="demo-note">示例数据：本页所有数字、日期和笔记都是随机生成的，用来演示功能，不是真实的做题记录。</p>');
 
 // tooltip
 const tip = $("#tip");
@@ -150,10 +152,10 @@ document.addEventListener("mousemove", (e) => {
 // KPIs
 const due = P.filter((p) => p.retention <= 0.5);
 const avg = P.reduce((a, p) => a + p.retention, 0) / (P.length || 1);
-$("#asof").textContent = `截至 ${D.today} · 数据来自你的 LeetCode 提交历史`;
+$("#asof").textContent = D.demo ? `截至 ${D.today}` : `截至 ${D.today} · 数据来自你的 LeetCode 提交历史`;
 $("#kpis").innerHTML = [
   [P.length, "做过的题（去重）"], [due.length, "今日到期"], [pct(avg), "平均记忆保持率"],
-  [P.filter((p) => p.note).length, `已写笔记（共 ${D.notes_total} 篇）`],
+  [P.filter((p) => p.note || p.topic).length, `已写笔记（共 ${D.notes_total} 篇）`],
 ].map(([v, l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
 
 // queue
@@ -173,7 +175,7 @@ function renderQueue() {
       <td><span class="bar ${p.retention < 0.15 ? "low" : ""}" data-tip="保持率 ${pct(p.retention)}<br>复习间隔 ${p.interval} 天，已过 ${Math.round(p.elapsed)} 天"><i style="width:${Math.max(4, p.retention * 100)}%"></i></span>${pct(p.retention)}</td>
       <td class="num">${p.last}</td><td class="num">${p.times}</td>
       <td class="chips">${esc(p.lists.join(" · ")) || "–"}</td>
-      <td class="note">${p.note ? `<a href="${p.note}" target="_blank" rel="noopener">${esc(p.topic || "笔记")}</a>` : "–"}</td></tr>`).join("") + "</tbody>";
+      <td class="note">${p.note ? `<a href="${p.note}" target="_blank" rel="noopener">${esc(p.topic || "笔记")}</a>` : p.topic ? esc(p.topic) : "–"}</td></tr>`).join("") + "</tbody>";
 }
 ["#f-list", "#f-diff", "#f-due", "#f-nonote"].forEach((s) => $(s).addEventListener("change", () => { shown = 30; renderQueue(); }));
 $("#more").addEventListener("click", () => { shown += 30; renderQueue(); });
