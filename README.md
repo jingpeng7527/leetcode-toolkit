@@ -1,56 +1,56 @@
 # leetcode-toolkit
 
-刷了几百道题，过几个月就忘了。这个工具读取你完整的 LeetCode 提交记录，用记忆曲线算出**今天最值得重做的题**，优先推荐 NeetCode 250、Top 100、Top Interview 150、Google / Apple 等题单里反复出现的题，并同步到 Notion、生成本地仪表盘。
+You solve hundreds of problems and forget them a few months later. This tool reads your full LeetCode submission history and uses a spaced-repetition (memory curve) model to pick **the problems most worth redoing today**, favoring ones that keep showing up in NeetCode 250, Top 100, Top Interview 150 and company lists like Google and Apple. It can sync the list to Notion and build a local dashboard.
 
-## 快速开始
+## Quick start
 
 ```bash
 git clone https://github.com/jingpeng7527/leetcode-toolkit.git
 cd leetcode-toolkit
 pip3 install -r requirements.txt
-cp .env.example .env      # 然后填入你的 LeetCode Cookie，见下
+cp .env.example .env      # then fill in your LeetCode cookies, see below
 python3 scripts/review.py
 ```
 
-**获取 Cookie**：浏览器登录 leetcode.com → 开发者工具 → Application → Cookies，复制 `LEETCODE_SESSION` 和 `csrftoken` 填进 `.env`。它们等同于你的登录凭证，不要发给别人或提交到 git（`.env` 已被忽略）。
+**Getting your cookies**: log in to leetcode.com → DevTools → Application → Cookies, and copy `LEETCODE_SESSION` and `csrftoken` into `.env`. They are equivalent to your login, so never share them or commit them (`.env` is git-ignored).
 
-## 能做什么
+## Commands
 
-| 命令 | 作用 |
+| Command | What it does |
 |---|---|
-| `python3 scripts/review.py` | 在终端列出今天该复习的题（`--all` 看全部，`--export out.csv` 导出） |
-| `python3 scripts/dashboard.py` | 生成并打开本地网页仪表盘：复习队列、遗忘曲线、做题热力图、题单覆盖进度 |
-| `python3 scripts/sync.py` | 把最该复习的前 50 题同步到 Notion（`--limit N` 调整数量） |
-| `python3 scripts/explain.py two-sum` | 让 Claude 给这道题分层提示（不直接给答案） |
-| `python3 scripts/daily.py` | 今日每日一题 |
+| `python3 scripts/review.py` | Print today's review queue in the terminal (`--all` for everything, `--export out.csv` to save) |
+| `python3 scripts/dashboard.py` | Build and open a local dashboard: review queue, forgetting curve, activity heatmap, list coverage |
+| `python3 scripts/sync.py` | Sync the top 50 problems to Notion (`--limit N` to change) |
+| `python3 scripts/explain.py two-sum` | Layered hints from Claude for a problem, without giving away the full solution |
+| `python3 scripts/daily.py` | Today's daily challenge |
 
-## 推荐是怎么排出来的
+## How the ranking works
 
-- 每次成功重做，下次复习的间隔变长：1、3、7、16、35、75、160 天。
-- 难题间隔更短，评分（zerotrac 周赛难度分）超过 2000 的超难题则往后放。
-- 出现在越多题单（NeetCode、Top 100、公司题单……）里的题，间隔越短、排位越靠前。
-- 距离上次 AC 超过一个间隔，就视为"到期"。
+- Each successful redo stretches the next interval: 1, 3, 7, 16, 35, 75, 160 days.
+- Harder problems get shorter intervals; problems rated above 2000 (zerotrac contest rating) are pushed back.
+- The more lists a problem appears in (NeetCode, Top 100, company lists, …), the shorter its interval and the higher it ranks.
+- A problem is due once more than one interval has passed since your last accepted submission.
 
-具体数值都在 [review/spaced_repetition.py](review/spaced_repetition.py) 顶部，可以自己调。
+All the numbers live at the top of [review/spaced_repetition.py](review/spaced_repetition.py) if you want to tune them.
 
-## 可选配置
+## Optional configuration
 
-在 `.env` 里按需填写：
+Set these in `.env` as needed:
 
-- **公司题单**（`COMPANIES=google,apple`）：需要 LeetCode Premium 的 Cookie，拉不到会自动跳过。
-- **Notion 同步**：填 `NOTION_API_KEY` 和 `NOTION_DATABASE_ID`。数据库需要这些列：`Name`（标题）、`Slug`（文本）、`Difficulty`（单选）、`Rating`、`AC Count`、`Overdue Days`（数字）、`Last AC`（日期）、`Lists`（多选）、`URL`（网址），并把数据库分享给你的 integration。
-- **关联你已有的笔记**：再加 `Notes`（网址）和 `Topic`（单选）两列，填 `NOTION_NOTES_PAGE_ID`（笔记根页面，也要分享给 integration）。笔记页标题里带题号，比如 `76. Minimum Window Substring`，就会自动对应上。
-- **Claude 讲题**：填 `ANTHROPIC_API_KEY`。
+- **Company lists** (`COMPANIES=google,apple`): needs cookies from a LeetCode Premium account. Lists that can't be fetched are skipped.
+- **Notion sync**: set `NOTION_API_KEY` and `NOTION_DATABASE_ID`. The database needs these properties: `Name` (title), `Slug` (text), `Difficulty` (select), `Rating`, `AC Count`, `Overdue Days` (number), `Last AC` (date), `Lists` (multi-select), `URL` (url). Share the database with your integration.
+- **Linking your existing notes**: add `Notes` (url) and `Topic` (select) properties, and set `NOTION_NOTES_PAGE_ID` to your notes root page (also shared with the integration). A note page is matched by the problem number in its title, e.g. `76. Minimum Window Substring`.
+- **Claude explanations**: set `ANTHROPIC_API_KEY`.
 
-## 注意
+## Caveats
 
-- 只支持 leetcode.com，不支持 leetcode.cn。
-- 提交历史用的是 LeetCode 没有公开文档的接口，将来可能失效。
-- 周赛难度分只覆盖上过周赛的约 2600 道题，其余按 Easy / Medium / Hard 估算。
-- Cookie 会过期，报认证错误时重新复制一份即可。
+- leetcode.com only; leetcode.cn is not supported.
+- Full submission history comes from an undocumented LeetCode GraphQL endpoint, which may change.
+- Contest ratings cover only about 2,600 problems that appeared in contests; the rest fall back to Easy / Medium / Hard.
+- Cookies expire. If you get an auth error, copy fresh ones into `.env`.
 
-## 致谢
+## Credits
 
-难度分来自 [zerotrac/leetcode_problem_rating](https://github.com/zerotrac/leetcode_problem_rating)，NeetCode 题单来自 [neetcode-gh/leetcode](https://github.com/neetcode-gh/leetcode)。
+Ratings from [zerotrac/leetcode_problem_rating](https://github.com/zerotrac/leetcode_problem_rating); NeetCode lists from [neetcode-gh/leetcode](https://github.com/neetcode-gh/leetcode).
 
 MIT License
